@@ -1,42 +1,96 @@
 var express = require('express')
 var uuid = require('node-uuid')
 var bodyParser = require('body-parser')
-var isEqual = require('lodash.isequal')
-var callData = require('./call-data')
-var userData = require('./user-data')
 
-var token = uuid.v4()
-var app = express()
+var error = document.getElementById('error-message')
+var myForm = document.getElementById('myForm')
+var table = document.getElementById('myTable')
 
-app.use(function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, X-TOKEN')
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS')
-  next()
-})
-app.use(bodyParser.urlencoded({ extended: true }))
-app.use(bodyParser.json())
+// Submit
+myForm.addEventListener('submit', function (e) {
+    // noRefresh
+  e.preventDefault()
 
-app.post('/authenticate', function (req, res) {
-  var user = userData.find(function (u) {
-    return isEqual(req.body.user, u)
+  startRequests()
+}, false)
+
+// Initialize AJAX requests
+function startRequests () {
+ // Values
+  var userValue = document.getElementById('user').value
+  var userPass = document.getElementById('password').value
+
+   // Check Credentials
+  var user = {
+
+    'email': userValue,
+    'password': userPass
+  }
+
+  $.ajax({
+
+       url: 'http://localhost:3000/authenticate',
+      type: 'POST',
+      data: {user},
+
+          success: function (data) {
+          myForm.style.display = 'none'
+          getCalls(data)
+    },
+
+          error: function () {
+          error.style.visibility = 'visible'
+
+      setTimeout(function () {
+        error.style.visibility = 'hidden'
+      }, 3000)
+    }
+
   })
+}
 
-  if (user) {
-    res.json({ token: token })
-  } else {
-    res.status(401).json({ error: 'invalid credentials' })
+// Get Request Func
+function getCalls (token) {
+  $.ajax({
+
+    url: 'http://localhost:3000/calls',
+    type: 'GET',
+
+        // Accept Token
+    headers: {
+      'X-TOKEN': token.token
+    },
+
+    success: function (calls) {
+        // Call Data to the drawTable Func
+      drawTable(calls)
+    }
+
+  })
+}
+
+function drawTable (data) {
+        var row
+        var cols = 3
+
+        //rows
+    for (var i = 0; i < cols; i++) {
+        row = table.insertRow(-1)
+
+    for (var j = 0; j < cols; j++) {
+      var cell = row.insertCell(-1)
+      
+
+      if (j == 0) {
+        cell.innerHTML = data.calls[i].sid
+      } else if (j == 1) {
+        cell.innerHTML = data.calls[i].from
+      } else if (j == 2) {
+        cell.innerHTML = data.calls[i].result
+      }
+    }
   }
-})
 
-app.get('/calls', function (req, res) {
-  if (req.get('X-TOKEN') === token) {
-    res.json({ calls: callData })
-  } else {
-    res.status(401).json({ error: 'unauthorized' })
-  }
-})
-
-app.listen(3000, function () {
-  console.log('server listening on port 3000!')
-})
+  //Table Display
+  table.style.visibility = 'visible'
+}
